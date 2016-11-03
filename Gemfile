@@ -5,4 +5,10 @@ gem 'puma'
 gem 'firebase', :require => 'firebase'
 gem 'data_mapper', :require => 'data_mapper'
 gem 'dm-types', :require => 'dm-types'
-gem 'dm-sqlite-adapter'
+
+group :development do
+  gem 'dm-sqlite-adapter'
+end
+group :production do
+  gem 'dm-postgres-adapter'
+end

@@ -7,6 +7,50 @@ Bundler.require
 
 require 'json'
 
+# === DataMapper Setup === #
+DataMapper.setup(:default, ENV['DATABASE_URL'] || 'sqlite::memory:')
+DataMapper::Model.raise_on_save_failure = true
+DataMapper::Property::String.length(255)
+#DataMapper::Logger.new($stdout, :debug)
+
+class Item
+  include DataMapper::Resource
+  default_scope(:default).update(:order => [:id.asc])
+
+  property :id, Serial
+  property :title, String
+  property :url, String
+  property :by, String
+  property :score, Integer
+  property :time, DateTime
+
+  property :created_at, DateTime
+  property :updated_at, DateTime
+  property :deleted_at, ParanoidDateTime
+  property :deleted, ParanoidBoolean, :default => false
+
+  before :update, :log_before_update
+  after :save, :log_after_save
+
+  def to_json
+    {:id => id, :title => title, :url => url, :by => by, :score => score, :time => time.to_time.to_i}.to_json
+  end
+
+  def log_before_update
+    puts 'Before update id: %s, title: %s' % [id, title]
+    true
+  end
+
+  def log_after_save
+    puts 'After save id: %s, title: %s' % [id, title]
+    true
+  end
+end
+
+DataMapper.finalize
+DataMapper.auto_upgrade!
+# === end DataMapper === #
+
 class ReadomAPIServer < Sinatra::Base
 
   enable :sessions
@@ -40,6 +84,9 @@ class ReadomAPIServer < Sinatra::Base
       when 'json'
         content_type 'application/json'
         list.to_json
+      when 'sample'
+        content_type 'application/json'
+        [list.sample].to_json
       else
         content_type 'text/plain'
         list.join ','
@@ -47,9 +94,15 @@ class ReadomAPIServer < Sinatra::Base
   end
 
   get '/news/v0/item/:item_id.:ext' do |item_id, ext|
-    base_uri = 'https://hacker-news.firebaseio.com/v0/item/'
-    firebase = Firebase::Client.new(base_uri)
-    item = firebase.get('%s' % item_id).body
+    if item = Item.first(:id => item_id) and item.title
+    else
+      base_uri = 'https://hacker-news.firebaseio.com/v0/item/'
+      firebase = Firebase::Client.new(base_uri)
+      f_item = firebase.get(item_id).body
+
+      item = Item.first_or_create :id => f_item['id']
+      item.update :score => f_item['score'], :time => Time.at(f_item['time']), :title => f_item['title'], :url => f_item['url'], :by => f_item['by']
+    end
 
     case ext
       when 'json'

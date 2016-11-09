@@ -32,8 +32,8 @@ class Item
   before :update, :log_before_update
   after :save, :log_after_save
 
-  def to_json
-    {:id => id, :title => title, :url => url, :by => by, :score => score, :time => time.to_time.to_i}.to_json
+  def to_json(json_opts=nil)
+    {:id => id, :title => title, :url => url, :by => by, :score => score, :time => time.to_time.to_i}.to_json(json_opts)
   end
 
   def log_before_update
@@ -44,6 +44,32 @@ class Item
   def log_after_save
     puts 'After save id: %s, title: %s' % [id, title]
     true
+  end
+
+  class <<self
+    alias :original_get :get
+
+    def get_or_fetch(id)
+      if item = Item.original_get(id) and item.title
+        p 'hit'
+        item
+      else
+        base_uri = 'https://hacker-news.firebaseio.com/v0/item/'
+        firebase = Firebase::Client.new(base_uri)
+        f_item = firebase.get(id).body
+
+        if f_item['title']
+          item = Item.create(:id => f_item['id']) unless item
+          item.update :score => f_item['score'], :time => Time.at(f_item['time']), :title => f_item['title'], :url => f_item['url'], :by => f_item['by']
+
+          item
+        else
+          nil
+        end
+      end
+    end
+
+    alias :get :get_or_fetch
   end
 end
 
@@ -79,14 +105,14 @@ class ReadomAPIServer < Sinatra::Base
     base_uri = 'https://hacker-news.firebaseio.com/v0/'
     firebase = Firebase::Client.new(base_uri)
     list = firebase.get(board).body
+    if limit = params['limit'] and max = limit.to_i - 1
+      list = list.shuffle[0..max]
+    end
 
     case ext
       when 'json'
         content_type 'application/json'
-        list.to_json
-      when 'sample'
-        content_type 'application/json'
-        [list.sample].to_json
+        list.map{|item_id| Item.get(item_id)}.to_json
       else
         content_type 'text/plain'
         list.join ','
@@ -94,14 +120,11 @@ class ReadomAPIServer < Sinatra::Base
   end
 
   get '/news/v0/item/:item_id.:ext' do |item_id, ext|
-    if item = Item.first(:id => item_id) and item.title
+    if item = Item.get(item_id)
+      puts 'hit id %d' % [item_id]
     else
-      base_uri = 'https://hacker-news.firebaseio.com/v0/item/'
-      firebase = Firebase::Client.new(base_uri)
-      f_item = firebase.get(item_id).body
-
-      item = Item.first_or_create :id => f_item['id']
-      item.update :score => f_item['score'], :time => Time.at(f_item['time']), :title => f_item['title'], :url => f_item['url'], :by => f_item['by']
+      puts 'miss id %d' % [item_id]
+      item = {}
     end
 
     case ext

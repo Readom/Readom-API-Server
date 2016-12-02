@@ -51,7 +51,6 @@ class Item
 
     def get_or_fetch(id)
       if item = Item.original_get(id) and item.title
-        p 'hit'
         item
       else
         base_uri = 'https://hacker-news.firebaseio.com/v0/item/'
@@ -76,6 +75,24 @@ end
 DataMapper.finalize
 DataMapper.auto_upgrade!
 # === end DataMapper === #
+
+class CounterStore
+  # store struct
+  # - counter_dates: set : 20161201, 20121202
+  # - counter_keys: set : pv, uv
+  # - counters: hash : date_pv => 110, date_uv => 10
+  # - counter_data: hll(pfadd/pfcount) : date_uv
+  # UV key:
+  # - IP?
+  # - Device?
+  # - User(Cookie)
+  #    Server: get['Cookie_UV'] ? inc counter : (set-cookie[uv] & inc counter)
+  #    Client: response['Cookie_UV'] ? 'save to default[uv]' : ""; request["Cookie_UV"] = default[uv]
+
+  def initialize(url=ENV["REDIS_URL"])
+    @redis ||= Redis.new(url: url)
+  end
+end
 
 $info = "Readom API Server"
 $time = Time.now.strftime('%FT%T%:z')

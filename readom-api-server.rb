@@ -90,7 +90,7 @@ class ReadomAPIServer < Sinatra::Base
     alias_method :h, :escape_html
   end
 
-  get '/' do |ext|
+  get '/:ext?' do |ext|
     info = "Readom API Server"
     time = Time.now.strftime('%FT%T%:z')
 

@@ -101,6 +101,10 @@ class ReadomAPIServer < Sinatra::Base
     end
   end
 
+  get '/uvid' do
+    {:UVID => request['Readom-UVID']}.to_json
+  end
+
   get "/news/v0/:board.:ext" do |board, ext|
     base_uri = 'https://hacker-news.firebaseio.com/v0/'
     firebase = Firebase::Client.new(base_uri)

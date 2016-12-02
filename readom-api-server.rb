@@ -105,7 +105,7 @@ class ReadomAPIServer < Sinatra::Base
   end
 
   get '/uvid.:ext' do |ext|
-    uvid = request['R-UVID'] || request.cookies['R-UVID'] || params['R-UVID'] || ''
+    uvid = request['R-UVID'] || request.cookies['R-UVID'] || request.env['HTTP_R_UVID'] || ''
 
     case ext
       when 'json'
@@ -113,7 +113,7 @@ class ReadomAPIServer < Sinatra::Base
         {:UVID => uvid}.to_json
       else
         content_type 'text/plain'
-        'UVID %s' % uvid
+        'UVID: %s' % uvid
     end
   end
 

@@ -90,33 +90,6 @@ class ReadomAPIServer < Sinatra::Base
     alias_method :h, :escape_html
   end
 
-  get '/:ext?' do |ext|
-    info = "Readom API Server"
-    time = Time.now.strftime('%FT%T%:z')
-
-    case ext
-      when 'json'
-        content_type 'application/json'
-        '{"status":"OK", "info":"%s", "time":"%s"}' % [info, time]
-      else
-        content_type 'text/plain'
-        'status: OK; info: %s; time: %s' % [info, time]
-    end
-  end
-
-  get '/uvid.:ext' do |ext|
-    uvid = request['R-UVID'] || request.cookies['R-UVID'] || request.env['HTTP_R_UVID'] || ''
-
-    case ext
-      when 'json'
-        content_type 'application/json'
-        {:UVID => uvid}.to_json
-      else
-        content_type 'text/plain'
-        'UVID: %s' % uvid
-    end
-  end
-
   get "/news/v0/:board.:ext" do |board, ext|
     base_uri = 'https://hacker-news.firebaseio.com/v0/'
     firebase = Firebase::Client.new(base_uri)
@@ -150,6 +123,33 @@ class ReadomAPIServer < Sinatra::Base
       else
         content_type 'text/plain'
         item.to_json
+    end
+  end
+
+  get '/uvid.:ext' do |ext|
+    uvid = request['R-UVID'] || request.cookies['R-UVID'] || request.env['HTTP_R_UVID'] || ''
+
+    case ext
+      when 'json'
+        content_type 'application/json'
+        {:UVID => uvid}.to_json
+      else
+        content_type 'text/plain'
+        'UVID: %s' % uvid
+    end
+  end
+
+  get '/:ext?' do |ext|
+    info = "Readom API Server"
+    time = Time.now.strftime('%FT%T%:z')
+
+    case ext
+      when 'json'
+        content_type 'application/json'
+        '{"status":"OK", "info":"%s", "time":"%s"}' % [info, time]
+      else
+        content_type 'text/plain'
+        'status: OK; info: %s; time: %s' % [info, time]
     end
   end
 end

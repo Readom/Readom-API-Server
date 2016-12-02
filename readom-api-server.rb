@@ -90,12 +90,75 @@ class CounterStore
   #    Client: response['Cookie_UV'] ? 'save to default[uv]' : ""; request["Cookie_UV"] = default[uv]
 
   def initialize(url=ENV["REDIS_URL"])
-    @redis ||= Redis.new(url: url)
+    @url = url
+
+    init_connection
+  end
+
+  def push(*arg)
+    # arg: uvid, page
+    ping
+
+    uvid, page = arg
+
+    t = Time.now.utc
+    ts = t.strftime('%F-%H%M')
+    @redis.sadd 'CS:page_list', page
+
+    ['_ALL', page].each do |pg|
+      @redis.sadd 'CS:date_list:%s' % pg, ts
+      @redis.hincrby 'CS:pv:%s' % pg, ts, 1
+      @redis.hincrby 'CS:uv:%s' % pg, ts, 1 if @redis.pfadd 'CS:uv_hll:%s:%s' % [pg, ts], uvid # pfcount 'CS:uv_hll:%s:%s' % [pg, ts]
+    end
+  end
+
+  def ping(ttl=3)
+    begin
+      @redis.ping
+    rescue => e
+      init_connection(ttl)
+    end
+  end
+
+  def init_connection(ttl=3)
+    begin
+      @redis = Redis.new(url: @url)
+      @redis.sadd 'CS:page_list', '_ALL'
+      ping(ttl-1)
+    rescue => e
+      if ttl > 0
+        sleep rand 5
+        init_connection(ttl-1)
+      end
+    end
+  end
+
+  def report
+    ping
+
+    page_list = @redis.smembers 'CS:page_list'
+    stat = page_list.sort.map do |pg|
+      date_list = @redis.smembers 'CS:date_list:%s' %pg
+      s = date_list.map do |dt|
+        pv = @redis.hget 'CS:pv:%s' % pg, dt
+
+        uv = @redis.pfcount 'CS:uv_hll:%s:%s' % [pg, dt]
+        _uv = @redis.hget('CS:uv:%s' % pg, dt).to_i
+        puts 'page: %s, date: %s, uv_hll: %d, uv: %d' % [pg, dt, uv, _uv] if uv != _uv
+        @redis.hincrby 'CS:uv:%s' % pg, dt, (uv - _uv) if uv > _uv
+        #@redis.hset 'CS_uv', dt, uv
+
+        [[:DATE, :PV, :UV], [dt, pv, uv]].transpose.to_h
+      end.sort {|x,y| x[:DATE] <=> y[:DATE]}
+
+      [pg, s]
+    end.to_h
   end
 end
 
 $info = "Readom API Server"
 $time = Time.now.strftime('%FT%T%:z')
+$counter = CounterStore.new
 
 class ReadomAPIServer < Sinatra::Base
 
@@ -106,11 +169,21 @@ class ReadomAPIServer < Sinatra::Base
   }
 
   helpers do
+    def counter_push(page)
+      @uvid = request['R-UVID'] || request.cookies['R-UVID'] || request.env['HTTP_R_UVID'] || ''
+
+      $counter.push @uvid, page
+    end
+  end
+
+  helpers do
     include Rack::Utils
     alias_method :h, :escape_html
   end
 
   get "/news/v0/:board.:ext" do |board, ext|
+    counter_push board
+
     base_uri = 'https://hacker-news.firebaseio.com/v0/'
     firebase = Firebase::Client.new(base_uri)
     list = firebase.get(board).body
@@ -129,6 +202,8 @@ class ReadomAPIServer < Sinatra::Base
   end
 
   get '/news/v0/item/:item_id.:ext' do |item_id, ext|
+    counter_push :item
+
     if item = Item.get(item_id)
       puts 'hit id %d' % [item_id]
     else
@@ -146,20 +221,34 @@ class ReadomAPIServer < Sinatra::Base
     end
   end
 
-  get '/uvid.:ext' do |ext|
-    uvid = request['R-UVID'] || request.cookies['R-UVID'] || request.env['HTTP_R_UVID'] || ''
+  get '/report.:ext' do |ext|
+    counter_push :report
 
     case ext
       when 'json'
         content_type 'application/json'
-        {:UVID => uvid}.to_json
+        $counter.report.to_json
       else
         content_type 'text/plain'
-        'UVID: %s' % uvid
+        $counter.report.to_yaml
+    end
+  end
+
+  get '/uvid.:ext' do |ext|
+    counter_push :uvid
+
+    case ext
+      when 'json'
+        content_type 'application/json'
+        {:UVID => @uvid}.to_json
+      else
+        content_type 'text/plain'
+        'UVID: %s' % @uvid
     end
   end
 
   get '/:ext?' do |ext|
+    counter_push :_OTHERS
     case ext
       when 'json'
         content_type 'application/json'

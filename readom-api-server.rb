@@ -90,8 +90,22 @@ class ReadomAPIServer < Sinatra::Base
     alias_method :h, :escape_html
   end
 
+  get '/' do |ext|
+    info = "Readom API Server"
+    time = Time.now.strftime('%FT%T%:z')
+
+    case ext
+      when 'json'
+        content_type 'application/json'
+        '{"status":"OK", "info":"%s", "time":"%s"}' % [info, time]
+      else
+        content_type 'text/plain'
+        'status: OK; info: %s; time: %s' % [info, time]
+    end
+  end
+
   get '/uvid.:ext' do |ext|
-    uvid = request['R-UVID'] || request.cookies['R-UVID'] || ''
+    uvid = request['R-UVID'] || request.cookies['R-UVID'] || params['R-UVID'] || ''
 
     case ext
       when 'json'
@@ -100,17 +114,6 @@ class ReadomAPIServer < Sinatra::Base
       else
         content_type 'text/plain'
         'UVID %s' % uvid
-    end
-  end
-
-  get '/:ext?' do |ext|
-    case ext
-      when 'json'
-        content_type 'application/json'
-        '{"status":"OK", "info":"Readom API Server"}'
-      else
-        content_type 'text/plain'
-        'Readom API Server'
     end
   end
 

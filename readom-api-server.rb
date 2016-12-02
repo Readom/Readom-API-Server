@@ -77,6 +77,9 @@ DataMapper.finalize
 DataMapper.auto_upgrade!
 # === end DataMapper === #
 
+$info = "Readom API Server"
+$time = Time.now.strftime('%FT%T%:z')
+
 class ReadomAPIServer < Sinatra::Base
 
   enable :sessions
@@ -140,16 +143,13 @@ class ReadomAPIServer < Sinatra::Base
   end
 
   get '/:ext?' do |ext|
-    info = "Readom API Server"
-    time = Time.now.strftime('%FT%T%:z')
-
     case ext
       when 'json'
         content_type 'application/json'
-        '{"status":"OK", "info":"%s", "time":"%s"}' % [info, time]
+        '{"status":"OK", "info":"%s", "time":"%s"}' % [$info, $time]
       else
         content_type 'text/plain'
-        'status: OK; info: %s; time: %s' % [info, time]
+        'status: OK; info: %s; time: %s' % [$info, $time]
     end
   end
 end

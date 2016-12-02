@@ -102,7 +102,7 @@ class CounterStore
     uvid, page = arg
 
     t = Time.now.utc
-    ts = t.strftime('%F-%H%M')
+    ts = t.strftime('%F')
     @redis.sadd 'CS:page_list', page
 
     ['_ALL', page].each do |pg|

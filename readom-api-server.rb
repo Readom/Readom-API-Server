@@ -90,6 +90,19 @@ class ReadomAPIServer < Sinatra::Base
     alias_method :h, :escape_html
   end
 
+  get '/uvid.:ext' do |ext|
+    uvid = request['R-UVID'] || request.cookies['R-UVID'] || ''
+
+    case ext
+      when 'json'
+        content_type 'application/json'
+        {:UVID => uvid}.to_json
+      else
+        content_type 'text/plain'
+        'UVID %s' % uvid
+    end
+  end
+
   get '/:ext?' do |ext|
     case ext
       when 'json'
@@ -99,10 +112,6 @@ class ReadomAPIServer < Sinatra::Base
         content_type 'text/plain'
         'Readom API Server'
     end
-  end
-
-  get '/uvid' do
-    {:UVID => request['Readom-UVID']}.to_json
   end
 
   get "/news/v0/:board.:ext" do |board, ext|

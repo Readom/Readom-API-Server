@@ -63,6 +63,8 @@ GEM
     firebase (0.2.6)
       httpclient
       json
+    haml (4.0.7)
+      tilt
     httpclient (2.8.2.4)
     json (1.8.3)
     json_pure (1.8.3)
@@ -90,9 +92,10 @@ DEPENDENCIES
   dm-sqlite-adapter
   dm-types
   firebase
+  haml
   puma
   redis
   sinatra
 
 BUNDLED WITH
-   1.12.5
+   1.13.2

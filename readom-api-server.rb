@@ -148,8 +148,9 @@ class CounterStore
         @redis.hincrby 'CS:uv:%s' % pg, dt, (uv - _uv) if uv > _uv
         #@redis.hset 'CS_uv', dt, uv
 
-        [[:DATE, :PV, :UV], [dt, pv, uv]].transpose.to_h
-      end.sort {|x,y| x[:DATE] <=> y[:DATE]}
+        #[[:DATE, :PV, :UV], [dt, pv, uv]].transpose.to_h
+        [dt, [[:PV, :UV], [pv, uv]].transpose.to_h]
+      end.to_h.sort {|x,y| y[0] <=> x[0]}.to_h
 
       [pg, s]
     end.to_h
@@ -157,12 +158,13 @@ class CounterStore
 end
 
 $info = "Readom API Server"
-$time = Time.now.strftime('%FT%T%:z')
+$time = Time.now.utc.strftime('%FT%T%:z')
 $counter = CounterStore.new
 
 class ReadomAPIServer < Sinatra::Base
 
   enable :sessions
+  enable :inline_templates
 
   configure {
     set :server, :puma
@@ -228,6 +230,10 @@ class ReadomAPIServer < Sinatra::Base
       when 'json'
         content_type 'application/json'
         $counter.report.to_json
+      when 'html'
+        @report = $counter.report
+        content_type 'text/html'
+        haml :report
       else
         content_type 'text/plain'
         $counter.report.to_yaml
@@ -249,13 +255,109 @@ class ReadomAPIServer < Sinatra::Base
 
   get '/:ext?' do |ext|
     counter_push :_OTHERS
+
     case ext
       when 'json'
         content_type 'application/json'
         '{"status":"OK", "info":"%s", "time":"%s"}' % [$info, $time]
-      else
+      when 'txt'
         content_type 'text/plain'
         'status: OK; info: %s; time: %s' % [$info, $time]
+      else
+        content_type 'text/html'
+        haml :index
     end
   end
 end
+
+__END__
+
+@@ layout
+-# coding: UTF-8
+!!!
+%html(xml:lang='en' lang='en' xmlns='http://www.w3.org/1999/xhtml')
+  %head
+    %meta(content='text/html;charset=UTF-8' http-equiv='content-type')
+    %meta(http-equiv="X-UA-Compatible" content="IE=edge")
+    %meta(name="viewport" content="width=device-width, initial-scale=1")
+
+    %link{:href => "css/bootstrap.min.css", :rel =>"stylesheet"}
+    %link{:href => "css/bootstrap-theme.min.css", :rel =>"stylesheet"}
+    <!--[if lt IE 9]>
+    %script{:src => "https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"}
+    %script{:src => "https://oss.maxcdn.com/respond/1.4.2/respond.min.js"}
+    <![endif]-->
+
+    %title Readom
+  %body{:style => 'padding-top: 70px;'}
+    %nav.navbar.navbar-default.navbar-fixed-top
+      .container-fluid
+        .navbar-header
+          %button.navbar-toggle.collapsed{:'data-toggle' => "collapse", :'data-target' => "#navbar-collapse-1", :'aria-expanded' => "false", :type => 'button'}
+            %span.sr-only Toggle navigation
+            %span.icon-bar
+            %span.icon-bar
+            %span.icon-bar
+          %a.navbar-brand
+            %img{:alt => 'Brand', :src => 'images/logo-29.png'}
+
+        .collapse.navbar-collapse#navbar-collapse-1
+          %ul.nav.navbar-nav.nav-tabs
+            %li.active{:role => "presentation"}
+              %a{:href => '#'} Readom
+            %li{:role => "presentation"}
+              %a{:href => '/report.html'} Report
+
+    .container
+      = yield
+    %script{:src => "js/jquery-3.1.1.slim.min.js"}
+    %script{:src => "js/bootstrap.min.js"}
+
+@@ index
+.jumbotron
+  .row
+    .col-md-2 Server
+    .col-md-3
+      = '%s' % $info
+  .row
+    .col-md-2 Status
+    .col-md-3 OK
+  .row
+    .col-md-2 Start since
+    .col-md-3
+      = '%s' % $time
+
+@@ report
+.page-header
+  %h1
+    Trends
+    %small
+      %span.glyphicon.glyphicon-stats{:'aria-hidden' => "true"}
+
+.row
+  .table-responsive
+    %table.table.table-striped
+      %tr
+        %th{:rowspan => 2} Date
+        - @report.keys.each do |page|
+          %th{:colspan => 2}
+            = page
+      %tr
+        - @report.keys.each do |page|
+          %th
+            = 'PV'
+          %th
+            = 'UV'
+      - @report['_ALL'].keys.each do |dt|
+        %tr
+          %td
+            = dt
+          - @report.keys.each do |page|
+            - if @report[page][dt]
+              %td
+                = @report[page][dt][:PV]
+              %td
+                = @report[page][dt][:UV]
+            - else
+              %td -
+              %td -

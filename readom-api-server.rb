@@ -18,20 +18,11 @@ class Item
   default_scope(:default).update(:order => [:id.asc])
 
   property :id, Serial
-  property :by, String
-  property :time, DateTime
-  property :url, String
-  property :score, Integer
   property :title, String
-
-  property :deleted, Boolean, :default => false
-  property :type, Enum[job, :story, :comment, :poll, :pollopt], :default => :story
-  property :text, Text
-  property :dead, Boolean, :default => false
-  property :parent, Integer
-#  property :kids
-#  property :parts
-  property :descendants, Integer  # In the case of stories or polls, the total comment count.
+  property :url, String
+  property :by, String
+  property :score, Integer
+  property :time, DateTime
 
   property :created_at, DateTime
   property :updated_at, DateTime
@@ -42,17 +33,12 @@ class Item
   after :save, :log_after_save
 
   def to_json(json_opts=nil)
-    {:id => id, :title => title, :url => url, :domain => domain, :by => by, :score => score, :time => time.to_time.to_i}.to_json(json_opts)
+    {:id => id, :title => title, :url => url, :by => by, :score => score, :time => time.to_time.to_i}.to_json(json_opts)
   end
 
   def log_before_update
     puts 'Before update id: %s, title: %s' % [id, title]
     true
-  end
-
-  def domain
-    return URI(url).host if url
-    return 'HackerNews'
   end
 
   def log_after_save

@@ -24,6 +24,10 @@ class Item
   property :score, Integer
   property :time, DateTime
 
+  property :top3, Boolean, :default => false
+  property :top3push, Boolean, :default => false
+  property :top3time, DateTime
+
   property :created_at, DateTime
   property :updated_at, DateTime
   property :deleted_at, ParanoidDateTime
@@ -33,7 +37,19 @@ class Item
   after :save, :log_after_save
 
   def to_json(json_opts=nil)
-    {:id => id, :title => title, :url => url, :by => by, :score => score, :time => time.to_time.to_i}.to_json(json_opts)
+    json_obj.to_json(json_opts)
+  end
+
+  def json_obj
+    {:id => id, :title => title, :url => url, :by => by, :score => score, :time => time.to_time.to_i}
+  end
+
+  def is_top3=(value)
+    if value
+      update(:top3 => value, :top3time => Time.now) unless top3time
+    else
+      update(:top3 => value)
+    end
   end
 
   def log_before_update
@@ -189,6 +205,14 @@ class ReadomAPIServer < Sinatra::Base
     base_uri = 'https://hacker-news.firebaseio.com/v0/'
     firebase = Firebase::Client.new(base_uri)
     list = firebase.get(board).body
+
+    if board.to_sym == :topstories
+      list[0..2].each do |item_id|
+        item = Item.get(item_id)
+        item.is_top3 = true if ! item.top3
+      end
+    end
+
     if limit = params['limit'] and max = limit.to_i - 1
       list = list.shuffle[0..max]
     end
@@ -220,6 +244,46 @@ class ReadomAPIServer < Sinatra::Base
       else
         content_type 'text/plain'
         item.to_json
+    end
+  end
+
+  get '/top3.:ext' do |ext|
+    if @items = Item.all(:top3 => true)
+    else
+      @items = []
+    end
+
+    case ext
+      when 'html'
+        content_type 'text/html'
+        @title = 'Top-3 Items'
+        haml :items
+      when 'json'
+        content_type 'application/json'
+        @items.to_json
+      else
+        content_type 'application/json'
+        @items.to_json
+    end
+  end
+
+  get '/items.:ext' do |ext|
+    if @items = Item.all
+    else
+      @items = []
+    end
+
+    case ext
+      when 'html'
+        content_type 'text/html'
+        @title = 'All Items'
+        haml :items
+      when 'json'
+        content_type 'application/json'
+        @items.to_json
+      else
+        content_type 'application/json'
+        @items.to_json
     end
   end
 
@@ -307,6 +371,10 @@ __END__
               %a{:href => '#'} Readom
             %li{:role => "presentation"}
               %a{:href => '/report.html'} Report
+            %li{:role => "presentation"}
+              %a{:href => '/items.html'} All Items
+            %li{:role => "presentation"}
+              %a{:href => '/top3.html'} Top-3 Items
 
     .container
       = yield
@@ -361,3 +429,29 @@ __END__
             - else
               %td -
               %td -
+
+@@ items
+.page-header
+  %h1
+    = @title || 'Items'
+    %small
+      %span.glyphicon.glyphicon-stats{:'aria-hidden' => "true"}
+.row
+  .table-responsive
+    %table.table.table-striped
+      %tr
+        - [:id, :title, :url, :by, :score, :time, :top3, :top3push, :top3time].each do |key|
+          %th
+            = key
+      - @items.each do |item|
+        %tr
+          - [:id, :title, :url, :by, :score, :time].each do |key|
+            %td
+              = item[key]
+          - [:top3, :top3push].each do |key|
+            %td
+              = item[key] ? 'Y' : 'N'
+          - [:top3time].each do |key|
+            %td
+              - if item[key]
+                = "%s (%s)" % [item[key].to_time.strftime("%F %T %z"), item[key].to_time.ago_in_words]

@@ -248,7 +248,7 @@ class ReadomAPIServer < Sinatra::Base
   end
 
   get '/top3.:ext' do |ext|
-    if @items = Item.all(:top3 => true)
+    if @items = Item.all(:top3 => true, :order => [:id.desc])
     else
       @items = []
     end
@@ -268,7 +268,7 @@ class ReadomAPIServer < Sinatra::Base
   end
 
   get '/items.:ext' do |ext|
-    if @items = Item.all
+    if @items = Item.all(:order => [:id.desc])
     else
       @items = []
     end

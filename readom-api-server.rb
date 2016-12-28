@@ -317,6 +317,19 @@ class ReadomAPIServer < Sinatra::Base
     end
   end
 
+  def '/cleanup' do
+    counter_push :cleanup
+    result = {status: :noop}
+
+    if count = Item.count > 10000
+      Item.all(limit: 1000).destroy
+      result = {status: :clean, count: Item.count, previous_count: count}
+    end
+
+    content_type 'application/json'
+    result.to_json
+  end
+
   get '/:ext?' do |ext|
     counter_push :_OTHERS
 

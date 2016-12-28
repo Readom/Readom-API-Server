@@ -317,7 +317,7 @@ class ReadomAPIServer < Sinatra::Base
     end
   end
 
-  def '/cleanup' do
+  get '/cleanup' do
     counter_push :cleanup
     result = {status: :noop}
 

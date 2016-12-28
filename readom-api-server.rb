@@ -321,7 +321,7 @@ class ReadomAPIServer < Sinatra::Base
     counter_push :cleanup
     result = {status: :noop}
 
-    if count = Item.count > 10000
+    if count = Item.count and count > 10000
       Item.all(top3: false, limit: 1000).destroy
       result = {status: :clean, count: Item.count, previous_count: count}
     end

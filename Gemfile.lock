@@ -65,11 +65,11 @@ GEM
       json
     haml (4.0.7)
       tilt
-    httpclient (2.8.2.4)
+    httpclient (2.8.3)
     json (1.8.3)
     json_pure (1.8.3)
     multi_json (1.12.1)
-    public_suffix (2.0.4)
+    public_suffix (2.0.5)
     puma (3.6.2)
     rack (1.6.5)
     rack-protection (1.5.3)

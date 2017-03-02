@@ -30,8 +30,8 @@ class Item
 
   property :created_at, DateTime
   property :updated_at, DateTime
-  property :deleted_at, ParanoidDateTime
-  property :deleted, ParanoidBoolean, :default => false
+#  property :deleted_at, ParanoidDateTime
+#  property :deleted, ParanoidBoolean, :default => false
 
   before :update, :log_before_update
   after :save, :log_after_save

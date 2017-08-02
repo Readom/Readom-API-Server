@@ -63,7 +63,7 @@ GEM
     firebase (0.2.6)
       httpclient
       json
-    haml (5.0.1)
+    haml (5.0.2)
       temple (>= 0.8.0)
       tilt
     httpclient (2.8.3)

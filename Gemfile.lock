@@ -71,7 +71,7 @@ GEM
     json_pure (1.8.6)
     multi_json (1.12.2)
     mustermann (1.0.1)
-    public_suffix (3.0.0)
+    public_suffix (3.0.1)
     puma (3.10.0)
     rack (2.0.3)
     rack-protection (2.0.0)
